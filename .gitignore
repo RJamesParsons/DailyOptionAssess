@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pdf
+*.zip
+*.db
+*.sqlite*
+.env
+backfill_raw/
+fixtures/*
+!fixtures/.gitkeep
