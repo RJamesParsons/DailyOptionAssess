@@ -108,6 +108,16 @@ class Api(unittest.TestCase):
         r = self.client.post("/api/import", files=[("files", ("x.pdf", b"hello", "application/pdf"))])
         self.assertEqual(r.json()["results"][0]["status"], "error")
 
+    def test_08b_bearer_token_works_without_cookie(self):
+        from fastapi.testclient import TestClient as TC
+        other = TC(app)
+        tok = other.post("/api/login", json={"password": "pw"}).json()["token"]
+        other.cookies.clear()
+        self.assertEqual(other.get("/api/imports").status_code, 401)
+        ok = other.get("/api/day/2026-10-13", headers={"Authorization": f"Bearer {tok}"})
+        self.assertEqual(ok.status_code, 200)
+        self.assertEqual(other.get("/api/imports", headers={"Authorization": "Bearer junk"}).status_code, 401)
+
     def test_09_logout(self):
         self.client.post("/api/logout")
         self.client.cookies.clear()

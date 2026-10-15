@@ -1,0 +1,93 @@
+{
+ "granularity": "day",
+ "total": {
+  "trades": 20,
+  "wins": 16,
+  "losses": 4,
+  "win_rate": "0.8000",
+  "premium_collected": "25110.00",
+  "premium_paid": "0.00",
+  "gross": "-2175.00",
+  "fees": "379.86",
+  "net": "-2554.86",
+  "max_risk": "95390.00",
+  "return_on_risk": "-0.0268"
+ },
+ "rows": [
+  {
+   "start": "2026-06-17",
+   "trades": 3,
+   "wins": 1,
+   "losses": 2,
+   "win_rate": "0.3333",
+   "premium_collected": "1730.00",
+   "premium_paid": "0.00",
+   "gross": "-5270.00",
+   "fees": "29.60",
+   "net": "-5299.60",
+   "max_risk": "7770.00",
+   "return_on_risk": "-0.6821",
+   "cumulative_net": "-5299.60"
+  },
+  {
+   "start": "2026-10-01",
+   "trades": 6,
+   "wins": 6,
+   "losses": 0,
+   "win_rate": "1.0000",
+   "premium_collected": "8075.00",
+   "premium_paid": "0.00",
+   "gross": "1635.00",
+   "fees": "110.60",
+   "net": "1524.40",
+   "max_risk": "26925.00",
+   "return_on_risk": "0.0566",
+   "cumulative_net": "-3775.20"
+  },
+  {
+   "start": "2026-10-08",
+   "trades": 5,
+   "wins": 5,
+   "losses": 0,
+   "win_rate": "1.0000",
+   "premium_collected": "6680.00",
+   "premium_paid": "0.00",
+   "gross": "865.00",
+   "fees": "113.54",
+   "net": "751.46",
+   "max_risk": "29320.00",
+   "return_on_risk": "0.0256",
+   "cumulative_net": "-3023.74"
+  },
+  {
+   "start": "2026-10-09",
+   "trades": 4,
+   "wins": 3,
+   "losses": 1,
+   "win_rate": "0.7500",
+   "premium_collected": "5175.00",
+   "premium_paid": "0.00",
+   "gross": "725.00",
+   "fees": "78.80",
+   "net": "646.20",
+   "max_risk": "19825.00",
+   "return_on_risk": "0.0326",
+   "cumulative_net": "-2377.54"
+  },
+  {
+   "start": "2026-10-13",
+   "trades": 2,
+   "wins": 1,
+   "losses": 1,
+   "win_rate": "0.5000",
+   "premium_collected": "3450.00",
+   "premium_paid": "0.00",
+   "gross": "-130.00",
+   "fees": "47.32",
+   "net": "-177.32",
+   "max_risk": "11550.00",
+   "return_on_risk": "-0.0154",
+   "cumulative_net": "-2554.86"
+  }
+ ]
+}

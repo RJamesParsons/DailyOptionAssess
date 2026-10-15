@@ -9,7 +9,7 @@ from decimal import Decimal
 
 from sqlalchemy import select
 
-from pnl.export import daily_csv, fills_csv, trades_csv
+from pnl.export import avg, daily_csv, fills_csv, trades_csv
 from pnl.matching import Orphan, Trade, daily_summary, process_fills
 from pnl.parser import Fill, parse_confirmation
 
@@ -127,6 +127,16 @@ def _s(x):
     return None if x is None else format(x, "f") if isinstance(x, Decimal) else str(x)
 
 
+def _m(x):
+    """Dollars as a plain decimal string with exactly 2 places."""
+    return None if x is None else format(x.quantize(Decimal("0.01")), "f")
+
+
+def _r(x):
+    """Ratios as a decimal string with 4 places (-0.0300 means -3.0%)."""
+    return None if x is None else format(x.quantize(Decimal("0.0001")), "f")
+
+
 def trade_dict(t: Trade, notes: dict) -> dict:
     fee_lines = {k: ZERO for k in FEE_TYPES}
     legs = []
@@ -137,7 +147,7 @@ def trade_dict(t: Trade, notes: dict) -> dict:
             legs.append({"trade_number": leg.trade_number, "date": leg.trade_date.isoformat(),
                          "time": leg.exec_time.strftime("%H:%M:%S"), "side": leg.side.lower(),
                          "action": sf.action, "right": leg.right, "strike": _s(leg.strike.normalize()),
-                         "quantity": leg.quantity, "price": _s(leg.price), "net_amount": _s(leg.net_amount)})
+                         "quantity": leg.quantity, "price": _s(leg.price), "net_amount": _m(leg.net_amount)})
     key = trade_key(t)
     n = notes.get(key, {"market_condition": "", "learnings": "", "tags": []})
     return {
@@ -145,11 +155,11 @@ def trade_dict(t: Trade, notes: dict) -> dict:
         "strategy": t.strategy, "right": t.right, "short_strike": _s(t.short_strike.normalize()),
         "long_strike": _s(t.long_strike.normalize()), "contracts": t.peak,
         "open_date": t.open_date.isoformat(), "date": t.close_date.isoformat(), "status": t.status,
-        "flags": t.flags, "entry_avg": _s(t.entry_avg), "exit_avg": _s(t.exit_avg),
-        "premium_collected": _s(max(t.premium, ZERO)), "premium_paid": _s(max(-t.premium, ZERO)),
-        "gross": _s(t.gross), "fees": _s(t.fees), "net": _s(t.net), "max_risk": _s(t.max_risk),
-        "return_on_risk": _s(t.return_on_risk), "result": t.result,
-        "fee_breakdown": {k: _s(v) for k, v in fee_lines.items()},
+        "flags": t.flags, "entry_avg": avg(t.entry_avg), "exit_avg": avg(t.exit_avg),
+        "premium_collected": _m(max(t.premium, ZERO)), "premium_paid": _m(max(-t.premium, ZERO)),
+        "gross": _m(t.gross), "fees": _m(t.fees), "net": _m(t.net), "max_risk": _m(t.max_risk),
+        "return_on_risk": _r(t.return_on_risk), "result": t.result,
+        "fee_breakdown": {k: _m(v) for k, v in fee_lines.items()},
         "fee_source": "actual", "legs": legs, "note": n,
     }
 
@@ -160,12 +170,12 @@ def _agg(ts: list[Trade]) -> dict:
     risk = sum((t.max_risk for t in ts), ZERO)
     net = sum((t.net for t in ts), ZERO)
     return {"trades": len(ts), "wins": wins, "losses": losses,
-            "win_rate": _s(Decimal(wins) / Decimal(wins + losses)) if wins + losses else None,
-            "premium_collected": _s(sum((t.premium for t in ts if t.premium > 0), ZERO)),
-            "premium_paid": _s(sum((-t.premium for t in ts if t.premium < 0), ZERO)),
-            "gross": _s(sum((t.gross for t in ts), ZERO)), "fees": _s(sum((t.fees for t in ts), ZERO)),
-            "net": _s(net), "max_risk": _s(risk),
-            "return_on_risk": _s(net / risk) if risk else None}
+            "win_rate": _r(Decimal(wins) / Decimal(wins + losses)) if wins + losses else None,
+            "premium_collected": _m(sum((t.premium for t in ts if t.premium > 0), ZERO)),
+            "premium_paid": _m(sum((-t.premium for t in ts if t.premium < 0), ZERO)),
+            "gross": _m(sum((t.gross for t in ts), ZERO)), "fees": _m(sum((t.fees for t in ts), ZERO)),
+            "net": _m(net), "max_risk": _m(risk),
+            "return_on_risk": _r(net / risk) if risk else None}
 
 
 def day_view(d: date, underlyings: str | None) -> dict:
@@ -175,7 +185,7 @@ def day_view(d: date, underlyings: str | None) -> dict:
     running, series = ZERO, []
     for t in ts:
         running += t.net
-        series.append({"id": t.id, "net": _s(t.net), "cumulative": _s(running)})
+        series.append({"id": t.id, "net": _m(t.net), "cumulative": _m(running)})
     return {"date": d.isoformat(), "summary": _agg(ts), "trades": [trade_dict(t, nd) for t in ts],
             "series": series}
 
@@ -199,7 +209,7 @@ def period_view(g: str, frm, to, underlyings) -> dict:
     for b in sorted(buckets):
         a = _agg(buckets[b])
         cum += Decimal(a["net"])
-        rows.append({"start": b.isoformat(), **a, "cumulative_net": _s(cum)})
+        rows.append({"start": b.isoformat(), **a, "cumulative_net": _m(cum)})
     return {"granularity": g, "total": _agg(ts), "rows": rows}
 
 

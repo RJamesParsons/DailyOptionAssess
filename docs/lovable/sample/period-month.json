@@ -1,0 +1,48 @@
+{
+ "granularity": "month",
+ "total": {
+  "trades": 20,
+  "wins": 16,
+  "losses": 4,
+  "win_rate": "0.8000",
+  "premium_collected": "25110.00",
+  "premium_paid": "0.00",
+  "gross": "-2175.00",
+  "fees": "379.86",
+  "net": "-2554.86",
+  "max_risk": "95390.00",
+  "return_on_risk": "-0.0268"
+ },
+ "rows": [
+  {
+   "start": "2026-06-01",
+   "trades": 3,
+   "wins": 1,
+   "losses": 2,
+   "win_rate": "0.3333",
+   "premium_collected": "1730.00",
+   "premium_paid": "0.00",
+   "gross": "-5270.00",
+   "fees": "29.60",
+   "net": "-5299.60",
+   "max_risk": "7770.00",
+   "return_on_risk": "-0.6821",
+   "cumulative_net": "-5299.60"
+  },
+  {
+   "start": "2026-10-01",
+   "trades": 17,
+   "wins": 15,
+   "losses": 2,
+   "win_rate": "0.8824",
+   "premium_collected": "23380.00",
+   "premium_paid": "0.00",
+   "gross": "3095.00",
+   "fees": "350.26",
+   "net": "2744.74",
+   "max_risk": "87620.00",
+   "return_on_risk": "0.0313",
+   "cumulative_net": "-2554.86"
+  }
+ ]
+}

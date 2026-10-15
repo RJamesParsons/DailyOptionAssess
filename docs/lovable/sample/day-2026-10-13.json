@@ -1,0 +1,278 @@
+{
+ "date": "2026-10-13",
+ "summary": {
+  "trades": 2,
+  "wins": 1,
+  "losses": 1,
+  "win_rate": "0.5000",
+  "premium_collected": "3450.00",
+  "premium_paid": "0.00",
+  "gross": "-130.00",
+  "fees": "47.32",
+  "net": "-177.32",
+  "max_risk": "11550.00",
+  "return_on_risk": "-0.0154"
+ },
+ "trades": [
+  {
+   "id": "2026-10-13-1",
+   "key": "2026-10-13:8A2ZV",
+   "underlying": "SPXW",
+   "expiry": "2026-10-13",
+   "strategy": "call credit spread",
+   "right": "C",
+   "short_strike": "7800",
+   "long_strike": "7810",
+   "contracts": 10,
+   "open_date": "2026-10-13",
+   "date": "2026-10-13",
+   "status": "closed",
+   "flags": [],
+   "entry_avg": "2.95",
+   "exit_avg": "3.13",
+   "premium_collected": "2950.00",
+   "premium_paid": "0.00",
+   "gross": "-180.00",
+   "fees": "31.56",
+   "net": "-211.56",
+   "max_risk": "7050.00",
+   "return_on_risk": "-0.0300",
+   "result": "loss",
+   "fee_breakdown": {
+    "commission": "30.00",
+    "cat_fee": "0.10",
+    "regulatory_clearing_fee": "1.46",
+    "finra_fee": "0.00",
+    "sec_fee": "0.00"
+   },
+   "fee_source": "actual",
+   "legs": [
+    {
+     "trade_number": "8A2ZV",
+     "date": "2026-10-13",
+     "time": "12:20:01",
+     "side": "sold",
+     "action": "open",
+     "right": "C",
+     "strike": "7800",
+     "quantity": 5,
+     "price": "4.44",
+     "net_amount": "2216.06"
+    },
+    {
+     "trade_number": "8A2ZW",
+     "date": "2026-10-13",
+     "time": "12:20:01",
+     "side": "bought",
+     "action": "open",
+     "right": "C",
+     "strike": "7810",
+     "quantity": 5,
+     "price": "1.54",
+     "net_amount": "773.94"
+    },
+    {
+     "trade_number": "8A32B",
+     "date": "2026-10-13",
+     "time": "12:22:05",
+     "side": "sold",
+     "action": "open",
+     "right": "C",
+     "strike": "7800",
+     "quantity": 5,
+     "price": "4.606",
+     "net_amount": "2299.06"
+    },
+    {
+     "trade_number": "8A32C",
+     "date": "2026-10-13",
+     "time": "12:22:05",
+     "side": "bought",
+     "action": "open",
+     "right": "C",
+     "strike": "7810",
+     "quantity": 5,
+     "price": "1.606",
+     "net_amount": "806.94"
+    },
+    {
+     "trade_number": "8A5PK",
+     "date": "2026-10-13",
+     "time": "13:13:23",
+     "side": "sold",
+     "action": "close",
+     "right": "C",
+     "strike": "7810",
+     "quantity": 5,
+     "price": "1.17",
+     "net_amount": "581.06"
+    },
+    {
+     "trade_number": "8A5PJ",
+     "date": "2026-10-13",
+     "time": "13:13:23",
+     "side": "bought",
+     "action": "close",
+     "right": "C",
+     "strike": "7800",
+     "quantity": 5,
+     "price": "4.47",
+     "net_amount": "2238.94"
+    },
+    {
+     "trade_number": "8A5QJ",
+     "date": "2026-10-13",
+     "time": "13:14:45",
+     "side": "sold",
+     "action": "close",
+     "right": "C",
+     "strike": "7810",
+     "quantity": 1,
+     "price": "1.00",
+     "net_amount": "99.20"
+    },
+    {
+     "trade_number": "8A5QI",
+     "date": "2026-10-13",
+     "time": "13:14:45",
+     "side": "bought",
+     "action": "close",
+     "right": "C",
+     "strike": "7800",
+     "quantity": 1,
+     "price": "4.00",
+     "net_amount": "400.80"
+    },
+    {
+     "trade_number": "8A5S5",
+     "date": "2026-10-13",
+     "time": "13:15:09",
+     "side": "sold",
+     "action": "close",
+     "right": "C",
+     "strike": "7810",
+     "quantity": 4,
+     "price": "0.97",
+     "net_amount": "384.84"
+    },
+    {
+     "trade_number": "8A5S4",
+     "date": "2026-10-13",
+     "time": "13:15:09",
+     "side": "bought",
+     "action": "close",
+     "right": "C",
+     "strike": "7800",
+     "quantity": 4,
+     "price": "3.92",
+     "net_amount": "1571.16"
+    }
+   ],
+   "note": {
+    "market_condition": "",
+    "learnings": "",
+    "tags": []
+   }
+  },
+  {
+   "id": "2026-10-13-2",
+   "key": "2026-10-13:8A6VQ",
+   "underlying": "SPXW",
+   "expiry": "2026-10-13",
+   "strategy": "put credit spread",
+   "right": "P",
+   "short_strike": "7790",
+   "long_strike": "7780",
+   "contracts": 5,
+   "open_date": "2026-10-13",
+   "date": "2026-10-13",
+   "status": "closed",
+   "flags": [],
+   "entry_avg": "1.00",
+   "exit_avg": "0.90",
+   "premium_collected": "500.00",
+   "premium_paid": "0.00",
+   "gross": "50.00",
+   "fees": "15.76",
+   "net": "34.24",
+   "max_risk": "4500.00",
+   "return_on_risk": "0.0076",
+   "result": "win",
+   "fee_breakdown": {
+    "commission": "15.00",
+    "cat_fee": "0.04",
+    "regulatory_clearing_fee": "0.72",
+    "finra_fee": "0.00",
+    "sec_fee": "0.00"
+   },
+   "fee_source": "actual",
+   "legs": [
+    {
+     "trade_number": "8A6VQ",
+     "date": "2026-10-13",
+     "time": "13:32:18",
+     "side": "sold",
+     "action": "open",
+     "right": "P",
+     "strike": "7790",
+     "quantity": 5,
+     "price": "1.70",
+     "net_amount": "846.06"
+    },
+    {
+     "trade_number": "8A6VP",
+     "date": "2026-10-13",
+     "time": "13:32:18",
+     "side": "bought",
+     "action": "open",
+     "right": "P",
+     "strike": "7780",
+     "quantity": 5,
+     "price": "0.70",
+     "net_amount": "353.94"
+    },
+    {
+     "trade_number": "8A75O",
+     "date": "2026-10-13",
+     "time": "13:34:54",
+     "side": "sold",
+     "action": "close",
+     "right": "P",
+     "strike": "7780",
+     "quantity": 5,
+     "price": "0.60",
+     "net_amount": "296.06"
+    },
+    {
+     "trade_number": "8A75M",
+     "date": "2026-10-13",
+     "time": "13:34:54",
+     "side": "bought",
+     "action": "close",
+     "right": "P",
+     "strike": "7790",
+     "quantity": 5,
+     "price": "1.50",
+     "net_amount": "753.94"
+    }
+   ],
+   "note": {
+    "market_condition": "",
+    "learnings": "",
+    "tags": []
+   }
+  }
+ ],
+ "series": [
+  {
+   "id": "2026-10-13-1",
+   "net": "-211.56",
+   "cumulative": "-211.56"
+  },
+  {
+   "id": "2026-10-13-2",
+   "net": "34.24",
+   "cumulative": "-177.32"
+  }
+ ]
+}

@@ -12,3 +12,5 @@ SESSION_DAYS = int(os.environ.get("APP_SESSION_DAYS", "30"))
 SECURE_COOKIE = os.environ.get("APP_SECURE_COOKIE", "1") != "0"   # set 0 only for local http
 DEFAULT_UNDERLYINGS = ("SPX", "SPXW")
 MAX_UPLOAD_MB = 15
+# Comma-separated list of front-end origins allowed to call the API, e.g. https://my-app.lovable.app
+CORS_ORIGINS = [o.strip() for o in os.environ.get("APP_CORS_ORIGINS", "").split(",") if o.strip()]

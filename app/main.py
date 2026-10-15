@@ -8,6 +8,7 @@ from pathlib import Path
 
 import bcrypt
 from fastapi import Depends, FastAPI, File, HTTPException, Query, Request, Response, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse
 from itsdangerous import BadSignature, SignatureExpired, TimestampSigner
 from pydantic import BaseModel
@@ -16,6 +17,9 @@ from . import config, service
 from .models import init_db
 
 app = FastAPI(title="DailyOptionAssess", docs_url=None, redoc_url=None, openapi_url=None)
+if config.CORS_ORIGINS:      # a separately hosted front end (Lovable) calls this API from another origin
+    app.add_middleware(CORSMiddleware, allow_origins=config.CORS_ORIGINS, allow_methods=["GET", "POST", "PUT"],
+                       allow_headers=["Authorization", "Content-Type"], max_age=600)
 STATIC = Path(__file__).parent / "static"
 COOKIE = "doa_session"
 _fails: dict[str, list[float]] = {}
@@ -33,7 +37,8 @@ def _signer() -> TimestampSigner:
 
 
 def require_login(request: Request):
-    tok = request.cookies.get(COOKIE)
+    auth = request.headers.get("authorization", "")
+    tok = auth[7:] if auth.lower().startswith("bearer ") else request.cookies.get(COOKIE)
     if not tok or not config.SESSION_SECRET:
         raise HTTPException(401, "Login required")
     try:
@@ -59,9 +64,12 @@ def login(body: Login, request: Request, response: Response):
         _fails[ip] = recent + [now]
         raise HTTPException(401, "Wrong password")
     _fails.pop(ip, None)
-    response.set_cookie(COOKIE, _signer().sign("ok").decode(), httponly=True, samesite="lax",
+    token = _signer().sign("ok").decode()
+    response.set_cookie(COOKIE, token, httponly=True, samesite="lax",
                         secure=config.SECURE_COOKIE, max_age=config.SESSION_DAYS * 86400)
-    return {"ok": True}
+    # The token is also returned for a separately hosted front end, which sends it as
+    # "Authorization: Bearer <token>" (third-party cookies are unreliable across domains).
+    return {"ok": True, "token": token, "expires_in_days": config.SESSION_DAYS}
 
 
 @app.post("/api/logout")

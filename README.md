@@ -26,3 +26,7 @@ uvicorn app.main:app --port 8000           # open http://localhost:8000
 
 `DATABASE_URL` defaults to a local SQLite file; set it to a Postgres URL on Railway.
 Only extracted fills are stored (never the PDF, name or address; account last 4 only).
+
+## Front end (Lovable)
+See `docs/lovable/` for the API contract, sample responses and the instructions to paste into Lovable.
+Set `APP_CORS_ORIGINS` to the Lovable app's origin so the browser may call the API.

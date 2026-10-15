@@ -1,0 +1,21 @@
+{
+ "trades": [],
+ "orphans": [
+  {
+   "date": "2026-02-19",
+   "reason": "close fill with no open position (opening fills not in the imported files)",
+   "fills": [
+    "Bought 1 SPXW 260324C7175 #8A4CB",
+    "Sold 1 SPXW 260324C7200 #8A4CD"
+   ]
+  },
+  {
+   "date": "2026-02-19",
+   "reason": "close fill with no open position (opening fills not in the imported files)",
+   "fills": [
+    "Bought 1 SPXW 260324P6525 #8A4CC",
+    "Sold 1 SPXW 260324P6500 #8A4CE"
+   ]
+  }
+ ]
+}

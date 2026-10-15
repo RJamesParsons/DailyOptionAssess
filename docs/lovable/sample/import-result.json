@@ -1,0 +1,30 @@
+{
+ "results": [
+  {
+   "file": "10132026 Confirmation.pdf",
+   "status": "imported",
+   "fills": 14,
+   "new_fills": 14,
+   "warnings": [],
+   "errors": []
+  },
+  {
+   "file": "10132026 Confirmation (1).pdf",
+   "status": "duplicate",
+   "fills": 14,
+   "new_fills": 0,
+   "warnings": [],
+   "errors": []
+  },
+  {
+   "file": "bad.pdf",
+   "status": "error",
+   "fills": 0,
+   "new_fills": 0,
+   "warnings": [],
+   "errors": [
+    "No 'Page X of N' header found"
+   ]
+  }
+ ]
+}
