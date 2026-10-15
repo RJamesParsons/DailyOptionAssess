@@ -10,6 +10,7 @@ import bcrypt
 from fastapi import Depends, FastAPI, File, HTTPException, Query, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.staticfiles import StaticFiles
 from itsdangerous import BadSignature, SignatureExpired, TimestampSigner
 from pydantic import BaseModel
 
@@ -165,6 +166,10 @@ def export(kind: str, frm: date | None = Query(None, alias="from"), to: date | N
                              headers={"Content-Disposition": f'attachment; filename="{kind}.csv"'})
 
 
+app.mount("/static", StaticFiles(directory=STATIC), name="static")
+
+
 @app.get("/")
 def index():
-    return FileResponse(STATIC / "index.html")
+    # no-cache so edits to the UI files show up on a normal refresh while you iterate
+    return FileResponse(STATIC / "index.html", headers={"Cache-Control": "no-cache"})

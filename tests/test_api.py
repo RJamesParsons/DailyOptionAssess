@@ -126,3 +126,20 @@ class Api(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FrontEndFilesTest(unittest.TestCase):
+    """The browser UI is plain files served by the app itself."""
+
+    def test_ui_files_served(self):
+        c = TestClient(app)
+        home = c.get("/")
+        self.assertEqual(home.status_code, 200)
+        self.assertIn("/static/app.js", home.text)
+        self.assertIn("/static/app.css", home.text)
+        self.assertEqual(c.get("/static/app.js").status_code, 200)
+        self.assertEqual(c.get("/static/app.css").status_code, 200)
+
+    def test_ui_does_not_leak_data_without_login(self):
+        c = TestClient(app)
+        self.assertEqual(c.get("/api/day/2026-10-13").status_code, 401)
