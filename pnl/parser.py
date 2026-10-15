@@ -20,7 +20,7 @@ FILL_RE = re.compile(
     r"^(?P<td>\d\d/\d\d/\d{4})\s+(?P<sd>\d\d/\d\d/\d{4})\s+(?P<side>Bought|Sold)\s+.*?\s+"
     r"(?P<und>[A-Z]+)\s+(?P<exp>\d{6})(?P<right>[CP])(?P<strike>\d+(?:\.\d+)?)\s+"
     r"(?P<qty>\d+)\s+(?P<price>\d+(?:\.\d+)?)\s+Principal\s+(?P<principal>[\d,]+\.\d+)\s+"
-    r"\w+\s+\d+\s+(?P<tn>\w+)\s*$"
+    r"\w+\s+\w+\s+(?P<tn>\w+)\s*$"
 )
 FEE_PATTERNS = {
     "commission": re.compile(r"Commission\s+" + MONEY),
@@ -34,6 +34,8 @@ NET_RE = re.compile(r"NET AMOUNT\s+" + MONEY)
 EXEC_RE = re.compile(r"Execution Time\s+(\d\d:\d\d:\d\d)")
 OPENCLOSE_RE = re.compile(r"\b(OPENING|CLOSING) CONTRACT\b")
 SETTLE_RE = re.compile(r"\b(ASSIGNMENT|EXERCISE) OF OPTION\b")
+TRADE_LINE_RE = re.compile(r"^\d\d/\d\d/\d{4}\s+\d\d/\d\d/\d{4}\s+(?:Bought|Sold)\s.*Principal")
+OPTION_SYMBOL_RE = re.compile(r"\b[A-Z]+ \d{6}[CP]\d+(?:\.\d+)?\b")
 PAGE_RE = re.compile(r"Page\s+(\d+)\s+of\s+(\d+)")
 PROC_DATE_RE = re.compile(r"Processing Date\s+(\d{1,2}/\d{1,2}/\d{4})")
 ACCT_RE = re.compile(r"Account Number\s+(\d{4,})")
@@ -172,6 +174,18 @@ def parse_confirmation(pdf_path: str | Path) -> ParsedConfirmation:
 
     if not result.fills:
         result.errors.append("No fills found")
+    # Completeness: every printed trade line (date, date, Bought/Sold ... Principal) must have
+    # become a fill. A line the fill pattern cannot read blocks the import instead of vanishing.
+    parsed_tn = {f.trade_number for f in result.fills}
+    for ln in lines:
+        ln = ln.strip()
+        if not TRADE_LINE_RE.match(ln) or FILL_RE.match(ln):
+            continue
+        if OPTION_SYMBOL_RE.search(ln):
+            result.errors.append(f"Option trade line could not be read: {ln[:90]}")
+        else:
+            # Stock / ETF shares (for example from an assignment): outside v1, never silently lost.
+            result.warnings.append(f"Unsupported non-option fill skipped: {ln[:90]}")
     seen: set[str] = set()
     for f in result.fills:
         if f.trade_number in seen:

@@ -91,5 +91,15 @@ class Rules(unittest.TestCase):
         self.assertEqual(len(trades), 2)
 
 
+class ParserRegression(unittest.TestCase):
+    def test_fill_line_with_alphanumeric_exchange_code_is_parsed(self):
+        from pnl.parser import FILL_RE
+        line = ("08/04/2026       08/05/2026   Sold      INVESCO QQQ TR                  "
+                "QQQ 260804P722         1       0.30   Principal                30.00   MGN      S1   S2747")
+        m = FILL_RE.match(line)
+        self.assertIsNotNone(m)
+        self.assertEqual(m.group("tn"), "S2747")
+
+
 if __name__ == "__main__":
     unittest.main()
