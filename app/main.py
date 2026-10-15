@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hmac
+import logging
 import time
 from datetime import date
 from pathlib import Path
@@ -100,7 +101,12 @@ async def import_files(files: list[UploadFile] = File(...)):
         if not data.startswith(b"%PDF"):
             out.append({"file": f.filename, "status": "error", "errors": ["Not a PDF"]})
             continue
-        out.append(service.import_pdf(data, f.filename or "upload.pdf"))
+        try:
+            out.append(service.import_pdf(data, f.filename or "upload.pdf"))
+        except Exception as e:      # never a bare HTTP 500: show the cause in the Import screen and log the details
+            logging.getLogger("uvicorn.error").exception("import failed for %s", f.filename)
+            out.append({"file": f.filename, "status": "error", "fills": 0, "new_fills": 0, "warnings": [],
+                        "errors": [f"{type(e).__name__}: {e}"[:400]]})
     return {"results": out}
 
 
