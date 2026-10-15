@@ -79,6 +79,7 @@ class Trade:
     qty_opened: int = 0
     entry_avg: Decimal = ZERO
     exit_avg: Decimal = ZERO
+    leg_left: dict = field(default_factory=dict)  # per-leg contracts left once legged out
     premium: Decimal = ZERO  # signed: positive = collected, negative = paid
     gross: Decimal = ZERO
     fees: Decimal = ZERO
@@ -172,7 +173,25 @@ def _apply_exit(t: "Trade", sf: SpreadFill) -> None:
         t.status = "needs_attention"
     t.position -= sf.qty
     t.closed_qty += sf.qty
+    for k in t.leg_left:
+        t.leg_left[k] -= sf.qty
     t.spread_fills.append(sf)
+
+
+def _apply_single_leg(t: "Trade", leg: str, sf: SpreadFill) -> None:
+    """One leg closed on its own (legging out). The position stays open until both legs are."""
+    for k in ("short", "long"):
+        t.leg_left.setdefault(k, t.position)
+    t.leg_left[leg] -= sf.qty
+    if t.leg_left[leg] < 0:
+        t.flags.append("exit_exceeds_position")
+        t.status = "needs_attention"
+    new_pos = max(max(t.leg_left.values()), 0)
+    t.closed_qty += t.position - new_pos
+    t.position = new_pos
+    t.spread_fills.append(sf)
+    if "legged_out" not in t.flags:
+        t.flags.append("legged_out")
 
 
 def _resolve_exit_group(group: list[Fill], action: str, current: dict) -> list[Fill]:
@@ -189,18 +208,24 @@ def _resolve_exit_group(group: list[Fill], action: str, current: dict) -> list[F
                 left.remove(b)
                 left.remove(s)
                 break
-    # Pass 2 (settlement only): one leg in the money. The assigned short leg is bought back at
-    # intrinsic value and the long leg expires worthless (no fill); an exercised long leg alone
-    # happens when the short leg expired worthless (debit spreads).
-    if action == "settle":
-        for f in list(left):
-            if f.side == "Bought":
-                t = _find_open(current, f.underlying, f.expiry, f.right, short=f.strike, qty=f.quantity)
-            else:
-                t = _find_open(current, f.underlying, f.expiry, f.right, long_=f.strike, qty=f.quantity)
-            if t:
-                _apply_exit(t, _exit_spread_fill(t, action, [f], f.quantity, f))
-                left.remove(f)
+    # Pass 2: a single leg. At settlement the assigned short leg is bought back at intrinsic value
+    # and the long leg expires worthless (no fill); an exercised long leg alone happens when the
+    # short leg expired worthless. An ordinary close of one leg is legging out of the spread.
+    for f in list(left):
+        if f.side == "Bought":
+            t = _find_open(current, f.underlying, f.expiry, f.right, short=f.strike, qty=f.quantity)
+            leg = "short"
+        else:
+            t = _find_open(current, f.underlying, f.expiry, f.right, long_=f.strike, qty=f.quantity)
+            leg = "long"
+        if not t:
+            continue
+        sf = _exit_spread_fill(t, action, [f], f.quantity, f)
+        if action == "settle" and not t.leg_left:
+            _apply_exit(t, sf)
+        else:
+            _apply_single_leg(t, leg, sf)
+        left.remove(f)
     return left
 
 

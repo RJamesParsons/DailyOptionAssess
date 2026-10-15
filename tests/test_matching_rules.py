@@ -91,6 +91,24 @@ class Rules(unittest.TestCase):
         self.assertEqual(len(trades), 2)
 
 
+class LeggingOut(unittest.TestCase):
+    def test_legs_closed_on_different_days_make_one_closed_trade(self):
+        d2 = date(2026, 10, 15)
+        fs = [fill("Sold", "OPEN", "C", 7100, 1, 10.00, time(10, 0)),
+              fill("Bought", "OPEN", "C", 7150, 1, 5.00, time(10, 0)),
+              fill("Bought", "CLOSE", "C", 7100, 1, 30.00, time(11, 0)),
+              fill("Sold", "CLOSE", "C", 7150, 1, 20.00, time(11, 0), day=d2)]
+        # expiries must not be before the dates; use a far expiry
+        for f in fs:
+            object.__setattr__(f, "expiry", date(2026, 12, 18)) if False else setattr(f, "expiry", date(2026, 12, 18))
+        trades, orphans = process([conf(fs[:3]), conf(fs[3:], d2, "b")])
+        self.assertEqual(orphans, [])
+        t = trades[0]
+        self.assertEqual(t.status, "closed")
+        self.assertIn("legged_out", t.flags)
+        self.assertEqual(t.gross, D("500") - D("3000") + D("2000"))
+
+
 class ParserRegression(unittest.TestCase):
     def test_fill_line_with_alphanumeric_exchange_code_is_parsed(self):
         from pnl.parser import FILL_RE
