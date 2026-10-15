@@ -10,7 +10,9 @@ import getpass
 import os
 import secrets
 import shutil
+import socket
 import sys
+import traceback
 import webbrowser
 from pathlib import Path
 
@@ -53,6 +55,18 @@ def _setup(env: dict[str, str]) -> dict[str, str]:
     return env
 
 
+def _free_port(host: str, want: int) -> int:
+    """Return `want` if it can be bound, otherwise the next free port (Windows dev machines often use 8000)."""
+    for port in range(want, want + 30):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind((host, port))
+                return port
+            except OSError:
+                print(f"Port {port} is already in use, trying the next one...", flush=True)
+    raise SystemExit(f"No free port found between {want} and {want + 29}. Close other programs or pass --port.")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--load", metavar="FOLDER", help="import every confirmation PDF in this folder first")
@@ -87,11 +101,20 @@ def main() -> None:
         print(f"Loaded {len(paths)} files: {counts}", flush=True)
 
     import uvicorn
-    url = f"http://{'localhost' if a.host in ('127.0.0.1', '0.0.0.0') else a.host}:{a.port}/"
+    port = _free_port(a.host, a.port)
+    url = f"http://{'localhost' if a.host in ('127.0.0.1', '0.0.0.0') else a.host}:{port}/"
     print(f"\nOpen {url}   (Ctrl+C to stop)\n", flush=True)
     if not a.no_browser:
         webbrowser.open(url)
-    uvicorn.run("app.main:app", host=a.host, port=a.port, log_level="warning")
+    try:
+        uvicorn.run("app.main:app", host=a.host, port=port, log_level="info")
+    except KeyboardInterrupt:
+        pass
+    except BaseException:
+        print("\nThe server stopped because of this error:\n", flush=True)
+        traceback.print_exc()
+        raise SystemExit(1)
+    print("\nServer stopped.", flush=True)
 
 
 if __name__ == "__main__":
