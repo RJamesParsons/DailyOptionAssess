@@ -92,7 +92,7 @@ def trades_csv(trades: list[Trade], notes: dict | None = None, fee_source: dict 
 
 
 def fills_csv(fills: list[Fill], trades: list[Trade] | None = None, fee_source: str = "actual") -> str:
-    owner = {f.trade_number: t.id for t in (trades or []) for f in t.fills}
+    owner = {(f.trade_date, f.trade_number): t.id for t in (trades or []) for f in t.fills}
 
     def fee(f: Fill, k: str) -> str:
         return money(f.fees[k]) if k in f.fees else ""
@@ -110,7 +110,7 @@ def fills_csv(fills: list[Fill], trades: list[Trade] | None = None, fee_source: 
             "regulatory_clearing_fee": fee(f, "regulatory_clearing_fee"),
             "finra_fee": fee(f, "finra_fee"), "sec_fee": fee(f, "sec_fee"),
             "net_amount": money(f.net_amount), "fee_source": fee_source,
-            "trade_id": owner.get(f.trade_number, ""),
+            "trade_id": owner.get((f.trade_date, f.trade_number), ""),
         })
     return _write(FILL_COLUMNS, rows)
 

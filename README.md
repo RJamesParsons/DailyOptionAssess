@@ -12,3 +12,17 @@ itemized fees, premium collected/paid and return on risk (SPX/SPXW 0DTE vertical
 Confirmation PDFs contain personal data and are NOT stored in this repo (see `.gitignore`).
 Put sample PDFs in `fixtures/` locally to run the acceptance tests:
 `python3 -m unittest discover -s tests`.
+
+## Run locally
+
+```
+pip install -r requirements.txt            # also needs poppler-utils (pdftotext)
+python -m app.hash_password                # prints a value for APP_PASSWORD_HASH
+export APP_PASSWORD_HASH='...' APP_SESSION_SECRET="$(python -c 'import secrets;print(secrets.token_hex(32))')"
+export APP_SECURE_COOKIE=0                 # local http only
+python -m scripts.load_pdfs /path/to/confirmations   # optional bulk load
+uvicorn app.main:app --port 8000           # open http://localhost:8000
+```
+
+`DATABASE_URL` defaults to a local SQLite file; set it to a Postgres URL on Railway.
+Only extracted fills are stored (never the PDF, name or address; account last 4 only).

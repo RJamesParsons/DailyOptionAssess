@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daily Option Assess</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1c2230;--mute:#6b7385;--line:#e3e6ec;--win:#127a4a;--loss:#b4322b;--acc:#2b5fd9}
+@media (prefers-color-scheme:dark){:root{--bg:#12151c;--card:#1b2029;--ink:#e8ebf2;--mute:#9aa3b5;--line:#2a313e;--win:#4cc38a;--loss:#f07a72;--acc:#7da2ff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,Segoe UI,Roboto,sans-serif}
+main{max-width:980px;margin:0 auto;padding:12px 16px 60px}
+header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin:8px 0 12px}
+h1{font-size:18px;margin:0}nav{display:flex;gap:4px;flex-wrap:wrap}
+button,select,input,textarea{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px 11px}
+button{cursor:pointer}button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px}
+.tile b{display:block;font-size:20px}.tile span{color:var(--mute);font-size:12px}
+.win{color:var(--win)}.loss{color:var(--loss)}.mute{color:var(--mute)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.grow{flex:1}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}.scroll{overflow-x:auto}
+.bar{height:8px;border-radius:4px;background:var(--win)}.bar.l{background:var(--loss)}
+.fees{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:2px 12px;font-size:13px;margin:6px 0}
+.fees div{display:flex;justify-content:space-between;border-bottom:1px dotted var(--line)}
+textarea{width:100%;min-height:54px}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:28px;text-align:center;color:var(--mute)}
+.drop.over{border-color:var(--acc);color:var(--acc)}
+.pill{font-size:11px;border:1px solid var(--line);border-radius:99px;padding:1px 8px;color:var(--mute)}
+svg{width:100%;height:auto;display:block}
+#login{max-width:320px;margin:15vh auto}
+.hide{display:none}
+</style>
+</head>
+<body>
+<main>
+<div id="login" class="card hide">
+  <h1>Daily Option Assess</h1>
+  <p class="mute">Enter your password.</p>
+  <form id="loginform" class="row"><input id="pw" type="password" class="grow" autocomplete="current-password" autofocus><button class="on">Sign in</button></form>
+  <p id="loginerr" class="loss"></p>
+</div>
+
+<div id="app" class="hide">
+<header>
+  <h1>Daily Option Assess</h1>
+  <nav id="tabs"></nav>
+  <div class="row">
+    <select id="und" title="Underlyings"><option value="">SPX / SPXW</option><option value="ALL">All underlyings</option></select>
+    <button id="logout">Sign out</button>
+  </div>
+</header>
+<section id="v-day"></section>
+<section id="v-period" class="hide"></section>
+<section id="v-trades" class="hide"></section>
+<section id="v-import" class="hide"></section>
+<section id="v-attn" class="hide"></section>
+</div>
+</main>
+
+<script>
+const $=s=>document.querySelector(s);
+const money=v=>v==null?'–':(Number(v)<0?'-':'')+'$'+Math.abs(Number(v)).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const pct=v=>v==null?'–':(Number(v)*100).toFixed(1)+'%';
+const cls=v=>Number(v)>0?'win':Number(v)<0?'loss':'';
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const FEES={commission:'Commission',cat_fee:'CAT fee',regulatory_clearing_fee:'Regulatory & clearing',finra_fee:'FINRA',sec_fee:'SEC'};
+let tab='day',day=null,gran='month';
+
+async function api(path,opt){
+  const r=await fetch('/api'+path,{credentials:'same-origin',...opt});
+  if(r.status===401){showLogin();throw new Error('login');}
+  if(!r.ok){let m=r.statusText;try{m=(await r.json()).detail||m}catch(e){}throw new Error(m);}
+  return r.json();
+}
+const U=()=>{const u=$('#und').value;return u?'underlyings='+u:''};
+const q=(...p)=>{const s=p.filter(Boolean).join('&');return s?'?'+s:''};
+
+function showLogin(){$('#app').classList.add('hide');$('#login').classList.remove('hide');$('#pw').focus();}
+$('#loginform').onsubmit=async e=>{e.preventDefault();
+  try{await api('/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:$('#pw').value})});
+    $('#pw').value='';start();}catch(err){if(err.message!=='login')$('#loginerr').textContent=err.message;else $('#loginerr').textContent='Wrong password';}};
+$('#logout').onclick=async()=>{await fetch('/api/logout',{method:'POST'});showLogin();};
+$('#und').onchange=()=>render();
+
+const TABS=[['day','Day'],['period','Week / Month / Year'],['trades','Trades'],['import','Import'],['attn','Needs attention']];
+function drawTabs(){$('#tabs').innerHTML=TABS.map(([k,l])=>`<button class="${k===tab?'on':''}" data-t="${k}">${l}</button>`).join('');
+  document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render();});}
+
+async function start(){
+  $('#login').classList.add('hide');$('#app').classList.remove('hide');
+  if(!day){const imps=await api('/imports');day=imps.length?imps[0].date:new Date().toISOString().slice(0,10);}
+  render();
+}
+async function render(){
+  drawTabs();
+  for(const [k] of TABS)$('#v-'+k).classList.toggle('hide',k!==tab);
+  try{await ({day:rDay,period:rPeriod,trades:rTrades,import:rImport,attn:rAttn})[tab]();}catch(e){if(e.message!=='login')$('#v-'+tab).innerHTML=`<div class="card loss">${esc(e.message)}</div>`;}
+}
+
+/* ---------- charts (plain SVG, no libraries) ---------- */
+function chart(items,{line=true}={}){ // items: [{label,value,cum}]
+  if(!items.length)return '<p class="mute">No data.</p>';
+  const W=640,H=200,pl=44,pr=8,pt=10,pb=26,n=items.length;
+  const vals=items.map(i=>+i.value),cums=items.map(i=>+i.cum);
+  const all=[0,...vals,...(line?cums:[])];let mx=Math.max(...all),mn=Math.min(...all);if(mx===mn){mx+=1;mn-=1;}
+  const y=v=>pt+(mx-v)/(mx-mn)*(H-pt-pb),bw=(W-pl-pr)/n,x=i=>pl+i*bw+bw/2;
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="P&L chart"><line x1="${pl}" x2="${W-pr}" y1="${y(0)}" y2="${y(0)}" stroke="currentColor" opacity=".25"/>`;
+  for(const v of [mx,mn])s+=`<text x="${pl-4}" y="${y(v)+4}" text-anchor="end" font-size="10" fill="currentColor" opacity=".6">${Math.round(v)}</text>`;
+  items.forEach((it,i)=>{const v=+it.value,h=Math.abs(y(v)-y(0));
+    s+=`<rect x="${x(i)-Math.min(bw*.35,14)}" width="${Math.min(bw*.7,28)}" y="${v>=0?y(v):y(0)}" height="${Math.max(h,1)}" rx="2" fill="${v>=0?'var(--win)':'var(--loss)'}"><title>${esc(it.label)}: ${money(v)}</title></rect>`;
+    if(n<=16||i%Math.ceil(n/12)===0)s+=`<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="9" fill="currentColor" opacity=".6">${esc(it.label)}</text>`;});
+  if(line&&n>1)s+=`<polyline fill="none" stroke="var(--acc)" stroke-width="2" points="${cums.map((c,i)=>x(i)+','+y(c)).join(' ')}"/>`;
+  return s+'</svg>'+(line?'<div class="mute" style="font-size:12px">Bars: net P&amp;L. Line: running total.</div>':'');
+}
+const tile=(l,v,c='')=>`<div class="tile"><b class="${c}">${v}</b><span>${l}</span></div>`;
+function tiles(s){return `<div class="tiles">${tile('Net P&L',money(s.net),cls(s.net))}${tile('Gross P&L',money(s.gross),cls(s.gross))}${tile('Fees',money(s.fees))}${tile('Premium collected',money(s.premium_collected))}${Number(s.premium_paid)?tile('Premium paid',money(s.premium_paid)):''}${tile('Wins / losses',s.wins+' / '+s.losses)}${tile('Win rate',pct(s.win_rate))}${tile('Return on risk',pct(s.return_on_risk),cls(s.return_on_risk))}</div>`;}
+function exportBar(from,to){const b=k=>`<a href="/api/export/${k}.csv${q(from&&'from='+from,to&&'to='+to,U())}"><button type="button">${k[0].toUpperCase()+k.slice(1)} CSV</button></a>`;return `<div class="row"><span class="mute">Export:</span>${b('trades')}${b('fills')}${b('daily')}</div>`;}
+
+/* ---------- Day ---------- */
+async function rDay(){
+  const d=await api('/day/'+day+q(U()));
+  const maxAbs=Math.max(1,...d.trades.map(t=>Math.abs(+t.net)));
+  $('#v-day').innerHTML=`
+  <div class="row"><button id="prev">‹</button><input type="date" id="dpick" value="${day}"><button id="next">›</button>
+  <span class="grow"></span>${exportBar(day,day)}</div>
+  ${d.trades.length?'':'<div class="card mute">No trades on this day. Import the confirmation on the Import tab.</div>'}
+  ${d.trades.length?tiles(d.summary):''}
+  ${d.trades.length?`<div class="card">${chart(d.trades.map((t,i)=>({label:'#'+(i+1),value:t.net,cum:d.series[i].cumulative})))}</div>`:''}
+  ${d.trades.map(tradeCard(maxAbs)).join('')}`;
+  $('#prev').onclick=()=>shift(-1);$('#next').onclick=()=>shift(1);
+  $('#dpick').onchange=e=>{day=e.target.value;render();};
+  bindNotes();
+}
+function shift(n){const dt=new Date(day+'T12:00:00');dt.setDate(dt.getDate()+n);if(dt.getDay()===0)dt.setDate(dt.getDate()+n);if(dt.getDay()===6)dt.setDate(dt.getDate()+2*n);day=dt.toISOString().slice(0,10);render();}
+const tradeCard=maxAbs=>(t,i)=>`<div class="card">
+  <div class="row"><b>#${i+1} ${esc(t.underlying)} ${esc(t.strategy)} ${esc(t.short_strike)}/${esc(t.long_strike)} × ${t.contracts}</b>
+    <span class="pill">${esc(t.result)}</span>${t.status==='expired'?'<span class="pill">expired worthless (inferred)</span>':''}${t.flags.filter(f=>f!=='expired_inferred').map(f=>`<span class="pill">${esc(f)}</span>`).join('')}
+    <span class="grow"></span><b class="${cls(t.net)}">${money(t.net)}</b></div>
+  <div class="bar ${+t.net<0?'l':''}" style="width:${Math.max(2,Math.abs(+t.net)/maxAbs*100)}%;margin:6px 0"></div>
+  <div class="row mute"><span>Entry ${t.entry_avg}</span><span>Exit ${t.exit_avg}</span><span>Gross ${money(t.gross)}</span><span>Max risk ${money(t.max_risk)}</span><span>Return on risk ${pct(t.return_on_risk)}</span>
+   <span>${+t.premium_paid?'Premium paid '+money(t.premium_paid):'Premium collected '+money(t.premium_collected)}</span>${t.date!==t.open_date?`<span>Opened ${t.open_date}</span>`:''}</div>
+  <div class="fees">${Object.entries(t.fee_breakdown).map(([k,v])=>`<div><span>${FEES[k]||k}</span><span>${money(v)}</span></div>`).join('')}<div><b>Total fees</b><b>${money(t.fees)}</b></div></div>
+  <details><summary class="mute">Fills (${t.legs.length})</summary><div class="scroll"><table><tr><th>Time</th><th>Action</th><th>Side</th><th>Option</th><th>Qty</th><th>Price</th><th>Net</th></tr>
+  ${t.legs.map(l=>`<tr><td>${l.date.slice(5)} ${l.time}</td><td>${l.action}</td><td>${l.side}</td><td>${l.right} ${l.strike}</td><td>${l.quantity}</td><td>${l.price}</td><td>${money(l.net_amount)}</td></tr>`).join('')}</table></div></details>
+  <div class="row" style="margin-top:8px" data-key="${esc(t.key)}">
+    <select class="mc"><option value="">Market condition…</option>${['trending up','trending down','range-bound','high volatility / event day','other'].map(o=>`<option ${t.note.market_condition===o?'selected':''}>${o}</option>`).join('')}</select>
+    <input class="tg grow" placeholder="tags, comma separated" value="${esc(t.note.tags.join(', '))}">
+  </div>
+  <textarea class="ln" data-key="${esc(t.key)}" placeholder="Learnings…">${esc(t.note.learnings)}</textarea>
+  <div class="mute savemsg" style="font-size:12px"></div></div>`;
+function bindNotes(){
+  document.querySelectorAll('.card').forEach(c=>{const row=c.querySelector('[data-key]');if(!row)return;
+    const key=row.dataset.key,mc=c.querySelector('.mc'),tg=c.querySelector('.tg'),ln=c.querySelector('.ln'),msg=c.querySelector('.savemsg');let tm;
+    const save=()=>{clearTimeout(tm);tm=setTimeout(async()=>{try{await api('/notes/'+encodeURIComponent(key),{method:'PUT',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({market_condition:mc.value,learnings:ln.value,tags:tg.value.split(',').map(s=>s.trim()).filter(Boolean)})});msg.textContent='Saved';}catch(e){msg.textContent='Not saved: '+e.message;}},500);};
+    [mc,tg,ln].forEach(el=>el.oninput=save);});
+}
+
+/* ---------- Period ---------- */
+async function rPeriod(){
+  const p=await api('/period'+q('granularity='+gran,U()));
+  const label=r=>gran==='year'?r.start.slice(0,4):gran==='month'?r.start.slice(0,7):r.start.slice(5);
+  $('#v-period').innerHTML=`<div class="row">${['day','week','month','year'].map(g=>`<button class="${g===gran?'on':''}" data-g="${g}">${g[0].toUpperCase()+g.slice(1)}</button>`).join('')}<span class="grow"></span>${exportBar()}</div>
+  ${tiles(p.total)}
+  <div class="card">${chart(p.rows.map(r=>({label:label(r),value:r.net,cum:r.cumulative_net})))}</div>
+  <div class="card scroll"><table><tr><th>${gran}</th><th>Trades</th><th>W/L</th><th>Win %</th><th>Premium</th><th>Fees</th><th>Net</th><th>RoR</th></tr>
+  ${p.rows.slice().reverse().map(r=>`<tr><td>${gran==='day'?`<a href="#" data-d="${r.start}">${r.start}</a>`:label(r)}</td><td>${r.trades}</td><td>${r.wins}/${r.losses}</td><td>${pct(r.win_rate)}</td><td>${money(r.premium_collected)}</td><td>${money(r.fees)}</td><td class="${cls(r.net)}">${money(r.net)}</td><td>${pct(r.return_on_risk)}</td></tr>`).join('')}</table></div>`;
+  document.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>{gran=b.dataset.g;render();});
+  document.querySelectorAll('[data-d]').forEach(a=>a.onclick=e=>{e.preventDefault();day=a.dataset.d;tab='day';render();});
+}
+
+/* ---------- Trades ---------- */
+async function rTrades(){
+  const f=window._tf||{};
+  const rows=await api('/trades'+q(U(),f.result&&'result='+f.result,f.from&&'from='+f.from,f.to&&'to='+f.to,f.tag&&'tag='+encodeURIComponent(f.tag)));
+  $('#v-trades').innerHTML=`<div class="row"><input type="date" id="tf" value="${f.from||''}"><input type="date" id="tt" value="${f.to||''}">
+  <select id="tr"><option value="">All results</option><option ${f.result==='win'?'selected':''}>win</option><option ${f.result==='loss'?'selected':''}>loss</option></select>
+  <input id="ttag" placeholder="tag" value="${esc(f.tag||'')}" size="8"><button id="tgo" class="on">Filter</button><span class="grow"></span>${exportBar(f.from,f.to)}</div>
+  <div class="card scroll"><div class="mute">${rows.length} trades · net ${money(rows.reduce((a,r)=>a+Number(r.net),0))}</div><table><tr><th>Date</th><th>Trade</th><th>Qty</th><th>Premium</th><th>Fees</th><th>Net</th><th>RoR</th><th>Result</th></tr>
+  ${rows.slice().reverse().map(r=>`<tr><td><a href="#" data-d="${r.date}">${r.date}</a></td><td>${esc(r.underlying)} ${esc(r.strategy)} ${r.short_strike}/${r.long_strike}</td><td>${r.contracts}</td><td>${money(+r.premium_collected||-r.premium_paid)}</td><td>${money(r.fees)}</td><td class="${cls(r.net)}">${money(r.net)}</td><td>${pct(r.return_on_risk)}</td><td>${r.result}</td></tr>`).join('')}</table></div>`;
+  $('#tgo').onclick=()=>{window._tf={from:$('#tf').value,to:$('#tt').value,result:$('#tr').value,tag:$('#ttag').value.trim()};render();};
+  document.querySelectorAll('[data-d]').forEach(a=>a.onclick=e=>{e.preventDefault();day=a.dataset.d;tab='day';render();});
+}
+
+/* ---------- Import ---------- */
+async function rImport(){
+  const imps=await api('/imports');
+  $('#v-import').innerHTML=`<div class="card"><div class="drop" id="drop">Drop confirmation PDFs here, or <label style="color:var(--acc);cursor:pointer;text-decoration:underline">choose files<input type="file" id="files" accept="application/pdf" multiple hidden></label>
+  <div class="mute" style="margin-top:6px">One day or a whole batch. Re-uploading a day changes nothing. Only the extracted fills are kept; the PDF is discarded.</div></div><div id="res"></div></div>
+  <div class="card scroll"><b>${imps.length} days imported</b><table><tr><th>Day</th><th>New fills</th><th>Pages</th><th>Imported</th></tr>${imps.map(i=>`<tr><td><a href="#" data-d="${i.date}">${i.date}</a></td><td>${i.fills}</td><td>${i.pages}</td><td>${i.imported_at.replace('T',' ')}</td></tr>`).join('')}</table></div>`;
+  const send=async list=>{if(!list.length)return;const fd=new FormData();[...list].forEach(f=>fd.append('files',f));$('#res').innerHTML='<p class="mute">Importing…</p>';
+    try{const r=await api('/import',{method:'POST',body:fd});$('#res').innerHTML=r.results.map(x=>`<div class="row"><span class="pill ${x.status==='error'?'loss':x.status==='imported'?'win':''}">${x.status}</span><span>${esc(x.file)}</span><span class="mute">${x.new_fills||0} new fills</span>${(x.errors||[]).map(e=>`<span class="loss">${esc(e)}</span>`).join('')}${(x.warnings||[]).map(e=>`<span class="mute">${esc(e.slice(0,80))}</span>`).join('')}</div>`).join('');
+      const ok=r.results.filter(x=>x.status==='imported');if(ok.length){const imps=await api('/imports');day=imps[0].date;}}catch(e){$('#res').innerHTML=`<p class="loss">${esc(e.message)}</p>`;}};
+  const drop=$('#drop');['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over')}));
+  ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over')}));
+  drop.addEventListener('drop',e=>send(e.dataTransfer.files));$('#files').onchange=e=>send(e.target.files);
+  document.querySelectorAll('[data-d]').forEach(a=>a.onclick=e=>{e.preventDefault();day=a.dataset.d;tab='day';render();});
+}
+
+/* ---------- Needs attention ---------- */
+async function rAttn(){
+  const a=await api('/attention'+q(U()));
+  $('#v-attn').innerHTML=`<div class="card"><b>Fills with no matching entry (${a.orphans.length})</b>
+  ${a.orphans.length?a.orphans.map(o=>`<p><span class="mute">${o.date}</span> ${esc(o.reason)}<br>${o.fills.map(esc).join('<br>')}</p>`).join(''):'<p class="mute">None.</p>'}</div>
+  <div class="card scroll"><b>Trades to review (${a.trades.length})</b><p class="mute">Open, unresolved, scaled-in or legged-out trades. Needs-attention trades are left out of all totals.</p>
+  <table><tr><th>Date</th><th>Trade</th><th>Status</th><th>Flags</th><th>Net</th></tr>${a.trades.map(t=>`<tr><td>${t.open_date}</td><td>${esc(t.underlying)} ${esc(t.strategy)} ${t.short_strike}/${t.long_strike} ×${t.contracts}</td><td>${t.status}</td><td>${t.flags.join(', ')}</td><td class="${cls(t.net)}">${money(t.net)}</td></tr>`).join('')}</table></div>`;
+}
+
+api('/me').then(start).catch(()=>showLogin());
+</script>
+</body>
+</html>

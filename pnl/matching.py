@@ -367,8 +367,13 @@ def process(confirmations: list) -> tuple[list[Trade], list[Orphan]]:
     for c in confirmations:
         for f in c.fills:
             by_key.setdefault((f.trade_date, f.trade_number), f)
-    fills = list(by_key.values())
-    coverage = {c.processing_date for c in confirmations}
+    return process_fills(list(by_key.values()), {c.processing_date for c in confirmations})
+
+
+def process_fills(fills: list[Fill], coverage: set) -> tuple[list[Trade], list[Orphan]]:
+    """Match already-deduplicated fills. coverage = days whose confirmation was imported."""
+    if not fills:
+        return [], []
     open_fills, pre_orphans, exit_fills = pair_opens(fills)
     trades, orphans = build_trades(open_fills, exit_fills, coverage, max(coverage))
     orphans = pre_orphans + orphans
