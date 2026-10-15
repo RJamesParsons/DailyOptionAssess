@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import tempfile
+from pathlib import Path
 from collections import defaultdict
 from datetime import date, timedelta
 from decimal import Decimal
@@ -23,10 +24,15 @@ FEE_TYPES = ["commission", "cat_fee", "regulatory_clearing_fee", "finra_fee", "s
 # ---------------------------------------------------------------- import
 def import_pdf(data: bytes, filename: str) -> dict:
     """Parse one confirmation, keep only its fills, discard the file. Returns a per-file report."""
-    with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp:     # deleted on close
-        tmp.write(data)
-        tmp.flush()
-        conf = parse_confirmation(tmp.name)
+    # A temporary folder (not an open temp file): Windows will not let pdftotext read a file Python still holds open.
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:               # whole folder is deleted afterwards
+            path = Path(tmpdir) / "confirmation.pdf"
+            path.write_bytes(data)
+            conf = parse_confirmation(path)
+    except Exception as e:                                           # show the reason instead of a bare HTTP 500
+        return {"file": filename, "status": "error", "fills": 0, "new_fills": 0, "warnings": [],
+                "errors": [str(e) or type(e).__name__]}
     report = {"file": filename, "status": "error", "fills": 0, "new_fills": 0,
               "warnings": list(conf.warnings), "errors": list(conf.errors)}
     if conf.errors:

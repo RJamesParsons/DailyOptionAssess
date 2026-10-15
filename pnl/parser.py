@@ -94,11 +94,22 @@ class ParsedConfirmation:
         return not self.errors
 
 
+class PdfToolError(RuntimeError):
+    """The PDF reader (pdftotext from poppler) is missing or could not read the file."""
+
+
 def extract_text(pdf_path: Path) -> str:
-    out = subprocess.run(
-        ["pdftotext", "-layout", str(pdf_path), "-"],
-        check=True, capture_output=True, text=True,
-    )
+    try:
+        out = subprocess.run(
+            ["pdftotext", "-layout", str(pdf_path), "-"],
+            check=True, capture_output=True, encoding="utf-8", errors="replace",   # utf-8 also on Windows
+        )
+    except FileNotFoundError:
+        raise PdfToolError("The PDF reader 'pdftotext' (poppler) is not installed or not on PATH. "
+                           "Windows: 'winget install oschwartz10612.Poppler', then reopen the terminal and restart the app. "
+                           "macOS: 'brew install poppler'. Linux: 'sudo apt install poppler-utils'.") from None
+    except subprocess.CalledProcessError as e:
+        raise PdfToolError(f"pdftotext could not read this file: {(e.stderr or '').strip()[:200] or 'unknown error'}") from None
     return out.stdout
 
 

@@ -143,3 +143,21 @@ class FrontEndFilesTest(unittest.TestCase):
     def test_ui_does_not_leak_data_without_login(self):
         c = TestClient(app)
         self.assertEqual(c.get("/api/day/2026-10-13").status_code, 401)
+
+
+class ImportErrorsTest(unittest.TestCase):
+    """A broken environment must produce a readable per-file error, never a bare HTTP 500."""
+
+    def test_missing_pdftotext_is_reported(self):
+        import subprocess
+        from unittest import mock
+        with mock.patch.object(subprocess, "run", side_effect=FileNotFoundError):
+            r = service.import_pdf(b"%PDF-1.4 x", "x.pdf")
+        self.assertEqual(r["status"], "error")
+        self.assertIn("pdftotext", r["errors"][0])
+        self.assertIn("winget", r["errors"][0])
+
+    def test_garbage_pdf_is_reported(self):
+        r = service.import_pdf(b"%PDF-1.4 not really a pdf", "bad.pdf")
+        self.assertEqual(r["status"], "error")
+        self.assertTrue(r["errors"])
