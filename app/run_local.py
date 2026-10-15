@@ -9,6 +9,8 @@ import argparse
 import getpass
 import os
 import secrets
+import shutil
+import sys
 import webbrowser
 from pathlib import Path
 
@@ -31,6 +33,7 @@ def _setup(env: dict[str, str]) -> dict[str, str]:
         return env
     import bcrypt
     print("First-time setup: choose a password for the app.")
+    print("(Characters are hidden while you type or paste - that is normal. Press Enter when done.)")
     while True:
         pw = getpass.getpass("New password: ")
         if len(pw) >= 6 and pw == getpass.getpass("Repeat: "):
@@ -57,6 +60,11 @@ def main() -> None:
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--no-browser", action="store_true")
     a = ap.parse_args()
+    print(f"DailyOptionAssess starting (Python {sys.version.split()[0]}) in {Path.cwd()}", flush=True)
+    if not shutil.which("pdftotext"):
+        print("\nWARNING: 'pdftotext' was not found. The app will open, but importing PDFs will fail until it is installed:\n"
+              "  Windows: install poppler (e.g. 'winget install oschwartz10612.Poppler' or 'scoop install poppler'), then reopen the terminal\n"
+              "  macOS:   brew install poppler\n  Linux:   sudo apt install poppler-utils\n", flush=True)
 
     env = _setup(_read_env())
     for k, v in env.items():
@@ -66,18 +74,21 @@ def main() -> None:
         from app import service
         from app.models import init_db
         init_db()
-        paths = sorted(Path(a.load).expanduser().glob("*.pdf"))
+        folder = Path(a.load).expanduser()
+        if not folder.is_dir():
+            raise SystemExit(f"--load folder not found: {folder}\nUse the real path to your confirmation PDFs, or leave --load out and import from the Import tab.")
+        paths = sorted(folder.glob("*.pdf"))
         counts: dict[str, int] = {}
         for p in paths:
             r = service.import_pdf(p.read_bytes(), p.name)
             counts[r["status"]] = counts.get(r["status"], 0) + 1
             if r["status"] == "error":
                 print("ERROR", p.name, r["errors"])
-        print(f"Loaded {len(paths)} files: {counts}")
+        print(f"Loaded {len(paths)} files: {counts}", flush=True)
 
     import uvicorn
     url = f"http://{'localhost' if a.host in ('127.0.0.1', '0.0.0.0') else a.host}:{a.port}/"
-    print(f"\nOpen {url}   (Ctrl+C to stop)\n")
+    print(f"\nOpen {url}   (Ctrl+C to stop)\n", flush=True)
     if not a.no_browser:
         webbrowser.open(url)
     uvicorn.run("app.main:app", host=a.host, port=a.port, log_level="warning")
