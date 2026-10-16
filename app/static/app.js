@@ -200,7 +200,7 @@ function ladder(trades, series, summary) {
       <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Running total through the day, ending ${esc(money(summary.net, true))}">
       <line class="zero" x1="0" x2="${W}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}"/>
       <polyline class="cum" points="${pts.map(p => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ")}"/>
-      ${v.map((val, i) => `<circle class="dot" cx="${x(i).toFixed(1)}" cy="${y(val).toFixed(1)}" r="2.5"><title>${esc(money(rows[i].cum, true))}</title></circle>`).join("")}</svg>
+      ${v.map((val, i) => `<line class="dot" x1="${x(i).toFixed(1)}" x2="${x(i).toFixed(1)}" y1="${y(val).toFixed(1)}" y2="${y(val).toFixed(1)}"><title>${esc(money(rows[i].cum, true))}</title></line>`).join("")}</svg>
       <b class="${cls(summary.net)}">${money(summary.net, true)}</b></div>`;
   }
   return `<div class="card ladder"><div class="row between"><h3>Trades, in order of close</h3><span class="mute">Day net <b class="${cls(summary.net)}">${money(summary.net, true)}</b></span></div>
