@@ -10,7 +10,7 @@ from pathlib import Path
 import bcrypt
 from fastapi import Depends, FastAPI, File, HTTPException, Query, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from itsdangerous import BadSignature, SignatureExpired, TimestampSigner
 from pydantic import BaseModel
@@ -185,5 +185,9 @@ app.mount("/static", _FreshStatic(directory=STATIC), name="static")
 
 @app.get("/")
 def index():
-    # no-cache so edits to the UI files show up on a normal refresh while you iterate
-    return FileResponse(STATIC / "index.html", headers={"Cache-Control": "no-cache"})
+    # Stamp the CSS/JS URLs with their file times so a pull + restart can never show a stale cached copy.
+    html = (STATIC / "index.html").read_text(encoding="utf-8")
+    for name in ("app.css", "app.js"):
+        v = int((STATIC / name).stat().st_mtime)
+        html = html.replace(f"/static/{name}", f"/static/{name}?v={v}")
+    return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
