@@ -166,6 +166,48 @@ function chart(items, { title = "" } = {}) {
     <div class="legend"><span><i style="background:var(--bar-pos)"></i>Net gain</span><span><i style="background:var(--bar-neg)"></i>Net loss</span><span><i style="background:var(--line-cum)"></i>Running total</span></div></div>`;
 }
 
+/** Day screen: one row per trade (in close order) with a diverging bar: solid = result, hatched = fees. */
+const clock = t => { if (!t) return ""; let [h, m] = t.split(":").map(Number); const ap = h >= 12 ? "p" : "a"; h = h % 12 || 12; return `${h}:${String(m).padStart(2, "0")}${ap}`; };
+function ladder(trades, series, summary) {
+  const byKey = Object.fromEntries(trades.map(t => [t.key, t]));
+  const rows = series.map(s => ({ t: byKey[s.key], cum: s.cumulative })).filter(r => r.t);
+  if (!rows.length) return "";
+  const ext = rows.map(({ t }) => { const n = Number(t.net), g = Number(t.gross); return [Math.min(0, n, g), Math.max(0, n, g)]; });
+  const lo = Math.min(0, ...ext.map(e => e[0])), hi = Math.max(0, ...ext.map(e => e[1])), span = (hi - lo) || 1;
+  const pos = v => ((v - lo) / span * 100);
+  const z = pos(0);
+  const seg = (cl, a, b) => b - a < 1e-9 ? "" : `<i class="lb ${cl}" style="left:${pos(a).toFixed(2)}%;width:${Math.max(0.8, pos(b) - pos(a)).toFixed(2)}%"></i>`;
+  const html = rows.map(({ t }) => {
+    const n = Number(t.net), g = Number(t.gross), c = n < 0 ? "neg" : "pos";
+    let bar;
+    if (n !== 0 && Math.sign(n) === Math.sign(g)) {
+      const near = n > 0 ? Math.min(n, g) : Math.max(n, g), far = n > 0 ? Math.max(n, g) : Math.min(n, g);
+      bar = n > 0 ? seg(c, 0, near) + seg(c + " fee", near, far) : seg(c, near, 0) + seg(c + " fee", far, near);
+    } else bar = n > 0 ? seg(c, 0, n) : seg(c, n, 0);
+    const when = t.close_time ? `${clock(t.open_time)}–${clock(t.close_time)}` : `${clock(t.open_time)} · ${esc(t.status === "expired" ? "expired" : t.status.replace("_", " "))}`;
+    const name = `${t.right === "C" ? "Call" : "Put"} ${t.short_strike}/${t.long_strike} ×${t.contracts}`;
+    return `<button class="lrow" data-goto="${esc(t.key)}" title="Jump to this trade">
+      <span class="lhead"><span class="lt">${esc(when)}</span><b>${esc(name)}</b><span class="lv ${cls(t.net)}">${money(t.net, true)}</span></span>
+      <span class="ltrack"><i class="zl" style="left:${z.toFixed(2)}%"></i>${bar}</span>
+      <span class="lsub">gross ${money(t.gross, true)} · fees ${money(t.fees)}</span></button>`;
+  }).join("");
+  let spark = "";
+  if (rows.length >= 3) {
+    const W = 300, H = 44, P = 6, v = rows.map(r => Number(r.cum)), a = Math.min(0, ...v), b = Math.max(0, ...v), sp = (b - a) || 1;
+    const x = i => P + i * (W - 2 * P) / (v.length - 1), y = val => P + (b - val) * (H - 2 * P) / sp;
+    const pts = [[P, y(0)], ...v.map((val, i) => [x(i), y(val)])];
+    spark = `<div class="spark"><span class="mute">Running total by close</span>
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Running total through the day, ending ${esc(money(summary.net, true))}">
+      <line class="zero" x1="0" x2="${W}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}"/>
+      <polyline class="cum" points="${pts.map(p => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ")}"/>
+      ${v.map((val, i) => `<circle class="dot" cx="${x(i).toFixed(1)}" cy="${y(val).toFixed(1)}" r="2.5"><title>${esc(money(rows[i].cum, true))}</title></circle>`).join("")}</svg>
+      <b class="${cls(summary.net)}">${money(summary.net, true)}</b></div>`;
+  }
+  return `<div class="card ladder"><div class="row between"><h3>Trades, in order of close</h3><span class="mute">Day net <b class="${cls(summary.net)}">${money(summary.net, true)}</b></span></div>
+    <div class="lrows">${html}</div>${spark}
+    <div class="legend"><span><i class="sw"></i>Result</span><span><i class="sw hatch"></i>Fees</span></div></div>`;
+}
+
 const MARKETS = ["", "Trending up", "Trending down", "Range-bound", "High volatility / event day", "Other"];
 function tradeCard(t, maxAbs) {
   const fb = t.fee_breakdown || {}, win = sign(t.net) >= 0;
@@ -223,7 +265,6 @@ async function viewDay(arg, main) {
   const prev = [...dates].reverse().find(x => x < d), next = dates.find(x => x > d);
   const data = await api(`/day/${d}${scope()}`);
   const trades = data.trades, maxAbs = Math.max(0, ...trades.map(t => Math.abs(Number(t.net))));
-  const ser = data.series.length ? data.series : trades.map(t => ({ net: t.net, cumulative: t.net }));
   const head = `<div class="page-head"><div class="row">
       <button class="btn" id="prev" ${prev ? "" : "disabled"} aria-label="Previous trading day">‹ Prev</button>
       <input type="date" id="dpick" value="${esc(d)}" aria-label="Date">
@@ -234,12 +275,13 @@ async function viewDay(arg, main) {
     html += `<div class="card empty">No trades on this day${S.und ? "" : " for SPX / SPXW"}.<br><span style="font-size:13px">Import that day's confirmation PDF on the Import tab, or pick another date.</span></div>`;
   } else {
     html += `<div class="stack">${tiles(data.summary)}
-      ${chart(trades.map((t, i) => ({ label: "T" + (i + 1), net: ser[i].net, cum: ser[i].cumulative })), { title: "Net per trade and running total" })}
+      ${ladder(trades, data.series, data.summary)}
       ${trades.map(t => tradeCard(t, maxAbs)).join("")}
       <div class="card">${exportBar(d, d)}</div></div>`;
   }
   main.innerHTML = html;
   const go = x => { location.hash = "#/day/" + x; };
+  $$(".lrow", main).forEach(b => b.onclick = () => { const c = $(`.trade[data-key="${CSS.escape(b.dataset.goto)}"]`, main); if (c) c.scrollIntoView({ behavior: "smooth", block: "start" }); });
   $("#prev").onclick = () => prev && go(prev); $("#next").onclick = () => next && go(next);
   $("#dpick").onchange = e => e.target.value && go(e.target.value);
 }

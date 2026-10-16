@@ -155,11 +155,15 @@ def trade_dict(t: Trade, notes: dict) -> dict:
                          "action": sf.action, "right": leg.right, "strike": _s(leg.strike.normalize()),
                          "quantity": leg.quantity, "price": _s(leg.price), "net_amount": _m(leg.net_amount)})
     key = trade_key(t)
+    open_times = [l["time"] for l in legs if l["action"] == "open"]
+    close_times = [l["time"] for l in legs if l["action"] != "open"]
     n = notes.get(key, {"market_condition": "", "learnings": "", "tags": []})
     return {
         "id": t.id, "key": key, "underlying": t.underlying, "expiry": t.expiry.isoformat(),
         "strategy": t.strategy, "right": t.right, "short_strike": _s(t.short_strike.normalize()),
         "long_strike": _s(t.long_strike.normalize()), "contracts": t.peak,
+        "open_time": min(open_times) if open_times else None,
+        "close_time": max(close_times) if close_times else None,
         "open_date": t.open_date.isoformat(), "date": t.close_date.isoformat(), "status": t.status,
         "flags": t.flags, "entry_avg": avg(t.entry_avg), "exit_avg": avg(t.exit_avg),
         "premium_collected": _m(max(t.premium, ZERO)), "premium_paid": _m(max(-t.premium, ZERO)),
@@ -188,12 +192,14 @@ def day_view(d: date, underlyings: str | None) -> dict:
     _, _, _, notes = _load()
     nd = _notes_for(notes)
     ts = select_trades(d, d, underlyings)
+    tds = [trade_dict(t, nd) for t in ts]
+    # running total follows CLOSE time (when the result is realized); expired/open trades sort last
+    order = sorted(range(len(ts)), key=lambda i: (tds[i]["close_time"] or "99:99:99", tds[i]["open_time"] or ""))
     running, series = ZERO, []
-    for t in ts:
-        running += t.net
-        series.append({"id": t.id, "net": _m(t.net), "cumulative": _m(running)})
-    return {"date": d.isoformat(), "summary": _agg(ts), "trades": [trade_dict(t, nd) for t in ts],
-            "series": series}
+    for i in order:
+        running += ts[i].net
+        series.append({"id": ts[i].id, "key": tds[i]["key"], "net": _m(ts[i].net), "cumulative": _m(running)})
+    return {"date": d.isoformat(), "summary": _agg(ts), "trades": tds, "series": series}
 
 
 def _bucket(d: date, g: str) -> date:
