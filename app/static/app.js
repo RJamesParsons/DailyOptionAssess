@@ -192,7 +192,7 @@ function ladder(trades, series, summary) {
       <span class="lsub">gross ${money(t.gross, true)} · fees ${money(t.fees)}</span></button>`;
   }).join("");
   let spark = "";
-  if (rows.length >= 2) {
+  if (rows.length >= 1) {
     const mins = t => { if (!t) return null; const [h, m] = t.split(":").map(Number); return h * 60 + m; };
     const pts = rows.map(r => ({ x: mins(r.t.close_time) ?? 16 * 60, cum: Number(r.cum), net: Number(r.t.net), exp: !r.t.close_time }));
     const x0 = Math.min(...rows.map(r => mins(r.t.open_time) ?? 9 * 60 + 30)), x1 = Math.max(...pts.map(p => p.x));
