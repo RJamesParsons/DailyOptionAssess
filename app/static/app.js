@@ -87,7 +87,7 @@ async function download(kind, from, to) {
 }
 const exportBar = (from, to) => `<div class="row" data-export data-from="${esc(from || "")}" data-to="${esc(to || "")}">
   <span class="mute" style="font-size:12px">Export CSV</span>
-  <button class="btn" data-kind="trades">Trades</button><button class="btn" data-kind="fills">Fills</button><button class="btn" data-kind="daily">Daily</button></div>`;
+  <button class="btn" data-kind="trades">Trades</button><button class="btn" data-kind="fills">Fills</button><button class="btn" data-kind="daily">Daily</button><button class="btn" data-kind="analysis" title="Trades with open/close times and call/put, for outside analysis">Analysis</button></div>`;
 
 /* ---------- shell: login, tabs, routing ---------- */
 const TABS = [["day", "Day", "▦"], ["period", "Periods", "▥"], ["trades", "Trades", "☰"], ["import", "Import", "⇪"], ["attention", "Attention", "!"]];

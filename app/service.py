@@ -10,7 +10,7 @@ from decimal import Decimal
 
 from sqlalchemy import select
 
-from pnl.export import avg, daily_csv, fills_csv, trades_csv
+from pnl.export import _write, avg, daily_csv, fills_csv, safe_text, trades_csv
 from pnl.matching import Orphan, Trade, daily_summary, process_fills
 from pnl.parser import Fill, parse_confirmation
 
@@ -258,6 +258,38 @@ def export_trades(frm, to, underlyings) -> str:
     ts = select_trades(frm, to, underlyings)
     nd = _notes_for(notes)
     return trades_csv(ts, {t.id: nd[trade_key(t)] for t in ts if trade_key(t) in nd})
+
+
+ANALYSIS_COLUMNS = ["trade_key", "trade_date", "open_date", "open_time_et", "close_time_et", "hold_minutes", "underlying",
+                    "expiry", "strategy", "right", "short_strike", "long_strike", "contracts", "entry_avg", "exit_avg",
+                    "premium_collected", "gross_pnl", "fees", "net_pnl", "max_risk", "return_on_risk", "result", "status",
+                    "flags", "market_condition", "learnings", "tags"]
+
+
+def export_analysis(frm, to, underlyings) -> str:
+    """Trades CSV for outside analysis: one row per trade WITH open/close clock times (ET), call/put, key and flags."""
+    _, _, _, notes = _load()
+    nd = _notes_for(notes)
+    rows = []
+    for t in select_trades(frm, to, underlyings):
+        d = trade_dict(t, nd)
+        hold = ""
+        if d["open_time"] and d["close_time"] and d["open_date"] == d["date"]:
+            a, b = (sum(int(x) * m for x, m in zip(v.split(":"), (60, 1, 1 / 60))) for v in (d["open_time"], d["close_time"]))
+            hold = f"{b - a:.1f}"
+        n = d["note"]
+        rows.append({"trade_key": d["key"], "trade_date": d["date"], "open_date": d["open_date"],
+                     "open_time_et": d["open_time"] or "", "close_time_et": d["close_time"] or "", "hold_minutes": hold,
+                     "underlying": d["underlying"], "expiry": d["expiry"], "strategy": d["strategy"],
+                     "right": "call" if d["right"] == "C" else "put", "short_strike": d["short_strike"],
+                     "long_strike": d["long_strike"], "contracts": d["contracts"], "entry_avg": d["entry_avg"],
+                     "exit_avg": d["exit_avg"], "premium_collected": d["premium_collected"], "gross_pnl": d["gross"],
+                     "fees": d["fees"], "net_pnl": d["net"], "max_risk": d["max_risk"],
+                     "return_on_risk": d["return_on_risk"], "result": d["result"], "status": d["status"],
+                     "flags": ";".join(d["flags"]), "market_condition": safe_text(n.get("market_condition")),
+                     "learnings": safe_text(n.get("learnings")), "tags": safe_text(";".join(n.get("tags", [])))})
+    rows.sort(key=lambda r: (r["trade_date"], r["open_time_et"]))
+    return _write(ANALYSIS_COLUMNS, rows)
 
 
 def export_daily(frm, to, underlyings) -> str:

@@ -165,7 +165,7 @@ def note(key: str, body: Note):
 def export(kind: str, frm: date | None = Query(None, alias="from"), to: date | None = None,
            underlyings: str | None = None):
     fn = {"trades": service.export_trades, "fills": service.export_fills,
-          "daily": service.export_daily}.get(kind)
+          "daily": service.export_daily, "analysis": service.export_analysis}.get(kind)
     if not fn:
         raise HTTPException(404, "Unknown export")
     return PlainTextResponse(fn(frm, to, underlyings), media_type="text/csv; charset=utf-8",
