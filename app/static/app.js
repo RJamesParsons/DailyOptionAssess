@@ -192,16 +192,25 @@ function ladder(trades, series, summary) {
       <span class="lsub">gross ${money(t.gross, true)} · fees ${money(t.fees)}</span></button>`;
   }).join("");
   let spark = "";
-  if (rows.length >= 3) {
-    const W = 300, H = 44, P = 6, v = rows.map(r => Number(r.cum)), a = Math.min(0, ...v), b = Math.max(0, ...v), sp = (b - a) || 1;
-    const x = i => P + i * (W - 2 * P) / (v.length - 1), y = val => P + (b - val) * (H - 2 * P) / sp;
-    const pts = [[P, y(0)], ...v.map((val, i) => [x(i), y(val)])];
-    spark = `<div class="spark"><span class="mute">Running total by close</span>
-      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Running total through the day, ending ${esc(money(summary.net, true))}">
-      <line class="zero" x1="0" x2="${W}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}"/>
-      <polyline class="cum" points="${pts.map(p => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ")}"/>
-      ${v.map((val, i) => `<line class="dot" x1="${x(i).toFixed(1)}" x2="${x(i).toFixed(1)}" y1="${y(val).toFixed(1)}" y2="${y(val).toFixed(1)}"><title>${esc(money(rows[i].cum, true))}</title></line>`).join("")}</svg>
-      <b class="${cls(summary.net)}">${money(summary.net, true)}</b></div>`;
+  if (rows.length >= 2) {
+    const mins = t => { if (!t) return null; const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+    const pts = rows.map(r => ({ x: mins(r.t.close_time) ?? 16 * 60, cum: Number(r.cum), net: Number(r.t.net), exp: !r.t.close_time }));
+    const x0 = Math.min(...rows.map(r => mins(r.t.open_time) ?? 9 * 60 + 30)), x1 = Math.max(...pts.map(p => p.x));
+    const W = Math.max(300, Math.min(700, Math.round((document.getElementById("main").clientWidth || 700) - 60))), H = 150, L = 46, R = 14, T = 20, B = 24;
+    const xs = (x1 - x0) || 1, X = m => L + (m - x0) / xs * (W - L - R);
+    const vals = pts.map(p => p.cum), lo = Math.min(0, ...vals), hi = Math.max(0, ...vals), sp = (hi - lo) || 1, Y = v => T + (hi - v) / sp * (H - T - B);
+    let d = `M${X(x0).toFixed(1)},${Y(0).toFixed(1)}`, prev = 0;
+    pts.forEach(p => { d += ` H${X(p.x).toFixed(1)} V${Y(p.cum).toFixed(1)}`; prev = p.cum; });
+    d += ` H${(W - R).toFixed(1)}`;
+    const ticks = []; for (let m = Math.ceil(x0 / 60) * 60; m <= x1; m += 60) ticks.push(m);
+    const lab = (v) => (v < 0 ? "−$" : "+$") + Math.abs(v).toLocaleString("en-US", { maximumFractionDigits: 0 });
+    spark = `<div class="spark"><div class="row between"><h3>Running total through the day</h3><span class="mute">after each trade closes</span></div>
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Running total through the day, ending ${esc(money(summary.net, true))}">
+      <line class="zero" x1="${L}" x2="${W - R}" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}"/><text x="${L - 6}" y="${(Y(0) + 3).toFixed(1)}" text-anchor="end">$0</text>
+      ${ticks.map(m => `<line class="ax" x1="${X(m).toFixed(1)}" x2="${X(m).toFixed(1)}" y1="${H - B}" y2="${H - B + 4}"/><text x="${X(m).toFixed(1)}" y="${H - 6}" text-anchor="middle">${clock(String(Math.floor(m / 60)) + ":00")}</text>`).join("")}
+      <path class="cum" d="${d}"/>
+      ${pts.map(p => `<circle class="dot" cx="${X(p.x).toFixed(1)}" cy="${Y(p.cum).toFixed(1)}" r="4"><title>${esc(money(p.cum, true))}${p.exp ? " (expired)" : ""}</title></circle>
+        <text class="${p.net < 0 ? "loss" : "win"}" x="${Math.min(W - R - 18, X(p.x)).toFixed(1)}" y="${(p.net < 0 ? Y(p.cum) + 15 : Y(p.cum) - 8).toFixed(1)}" text-anchor="middle">${lab(p.cum)}</text>`).join("")}</svg></div>`;
   }
   return `<div class="card ladder"><div class="row between"><h3>Trades, in order of close</h3><span class="mute">Day net <b class="${cls(summary.net)}">${money(summary.net, true)}</b></span></div>
     <div class="lrows">${html}</div>${spark}
@@ -220,7 +229,6 @@ function tradeCard(t, maxAbs) {
     <div class="row between"><div><h2>${esc(tradeTitle(t))}</h2>
       <div class="row" style="margin-top:4px"><span class="pill ${t.result === "win" ? "win" : t.result === "loss" ? "loss" : ""}">${esc(t.result)}</span>${flags.map(f => `<span class="pill">${esc(f)}</span>`).join("")}</div></div>
       <div class="net ${cls(t.net)}">${money(t.net, true)}</div></div>
-    <div class="sizebar" aria-hidden="true"><i style="width:${w.toFixed(1)}%;background:var(${win ? "--bar-pos" : "--bar-neg"})"></i></div>
     <div class="kv">
       ${cell("Entry avg", nil(t.entry_avg) ? "–" : "$" + esc(t.entry_avg))}${cell("Exit avg", nil(t.exit_avg) ? "–" : "$" + esc(t.exit_avg))}
       ${cell("Gross", `<span class="${cls(t.gross)}">${money(t.gross, true)}</span>`)}
