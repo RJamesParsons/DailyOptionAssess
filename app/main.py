@@ -172,7 +172,15 @@ def export(kind: str, frm: date | None = Query(None, alias="from"), to: date | N
                              headers={"Content-Disposition": f'attachment; filename="{kind}.csv"'})
 
 
-app.mount("/static", StaticFiles(directory=STATIC), name="static")
+class _FreshStatic(StaticFiles):
+    """Always revalidate UI files so a pull + restart shows up on a normal refresh (no stale cached JS/CSS)."""
+    async def get_response(self, path, scope):
+        r = await super().get_response(path, scope)
+        r.headers["Cache-Control"] = "no-cache"
+        return r
+
+
+app.mount("/static", _FreshStatic(directory=STATIC), name="static")
 
 
 @app.get("/")
